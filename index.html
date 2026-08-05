@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAYOUT SEWING</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f0f2f5; color: #333; margin: 0; padding: 10px; }
+
+        .controls { background: #fff; padding: 12px 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+        .input-group { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: bold; color: #444; }
+        .input-group input { padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; }
+
+        button { padding: 7px 14px; background: #1a237e; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 11px;}
+        button:hover { background: #283593; }
+        .btn-pdf { background: #c62828; }
+        .btn-pdf:hover { background: #b71c1c; }
+
+        #layout-container { position: relative; background: #fff; padding: 12px 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); width: 100%; max-width: 790px; margin: 0 auto; }
+        .main-title { text-align: center; font-size: 16px; font-weight: bold; color: #1a237e; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #1a237e; padding-bottom: 6px; }
+
+        .header-ob { display: grid; grid-template-columns: 110px repeat(3, 1fr); gap: 5px; border-bottom: 2px solid #1a237e; padding-bottom: 8px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
+        .header-box { background: #f8f9fa; padding: 5px; border-radius: 4px; border: 1px solid #dee2e6; display: flex; flex-direction: column; justify-content: center; }
+        .header-box strong { font-size: 7.5px; color: #6c757d; text-transform: uppercase; margin-bottom: 1px; }
+        .header-box span { font-size: 10.5px; font-weight: bold; color: #1a237e; }
+
+        .photo-box { grid-row: span 2; display: flex; align-items: center; justify-content: center; border: 2px dashed #b0bec5; background: #eceff1; position: relative; overflow: hidden; border-radius: 4px; }
+        .photo-box img { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .photo-placeholder { font-size: 8.5px; color: #78909c; text-align: center; padding: 3px; }
+
+        #svg-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; overflow: visible; }
+
+        .process-container { display: flex; flex-direction: column; gap: 6px; position: relative; z-index: 2; padding: 0px 5px; }
+        .process-row { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; page-break-inside: avoid; break-inside: avoid; align-items: center; margin-bottom: 2px; }
+        .process-cell { display: flex; justify-content: center; width: 100%; }
+        .process-cell.empty { visibility: hidden; }
+
+        .process-card { width: 100%; max-width: 330px; border-radius: 4px; border: 1.2px solid #b0bec5; background: #ffffff; display: flex; flex-direction: column; page-break-inside: avoid; break-inside: avoid; }
+        .process-header { padding: 3px 6px; font-weight: bold; color: white; background: var(--card-header, #1a237e); border-top-left-radius: 3px; border-top-right-radius: 3px; font-size: 9.5px; display: flex; justify-content: space-between; align-items: center; }
+        .process-body { padding: 5px 6px; background: #ffffff; display: flex; justify-content: space-between; gap: 5px; align-items: center; min-height: 40px; }
+
+        .process-info { display: flex; flex-direction: column; gap: 1px; flex-grow: 1; }
+        .process-info .proc-name { font-weight: bold; color: #263238; font-size: 9.5px; line-height: 1.1; }
+        .process-info .proc-smv { font-size: 8.5px; color: #d81b60; font-weight: bold; margin-top: 1px; }
+
+        .machine-count-box { min-width: 36px; padding: 3px 6px; border: 1px solid #b0bec5; background: #ffffff; text-align: center; font-weight: bold; font-size: 10.5px; border-radius: 3px; color: #263238; }
+        .process-footer { padding: 3px 6px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; font-size: 8.5px; background: #fafafa; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; font-weight: bold; color: #455a64; }
+
+        .recap-container { margin-top: 12px; background: #fff; border-radius: 4px; border: 1px solid #ccc; overflow: hidden; position: relative; z-index: 2; page-break-inside: avoid; break-inside: avoid; }
+        .recap-title { background: #1a237e; color: white; padding: 5px 8px; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+        .recap-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+        .recap-table th, .recap-table td { padding: 3px 6px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+        .recap-table th { background: #f5f5f5; color: #333; font-weight: bold; }
+        .recap-table tr:last-child td { border-bottom: none; font-weight: bold; background: #e8eaf6; }
+        .machine-badge { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Upload File OB (Excel):</label>
+            <input type="file" id="obFile" accept=".xlsx, .xls">
+        </div>
+        <div class="input-group">
+            <label>Upload Foto Style:</label>
+            <input type="file" id="photoFile" accept="image/*">
+        </div>
+        <div class="input-group">
+            <label>Balancing (Misal: 1-2, 2-7):</label>
+            <input type="text" id="routeInput" placeholder="1-2, 2-7, 7-8" style="width: 220px;" oninput="drawConnections()">
+        </div>
+        <button onclick="processExcel()">Generate Layout</button>
+        <button class="btn-pdf" onclick="downloadPDF()">Unduh PDF</button>
+    </div>
+
+    <div id="layout-container">
+        <div class="main-title">LAYOUT SEWING</div>
+
+        <svg id="svg-canvas">
+            <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a237e" />
+                </marker>
+            </defs>
+        </svg>
+
+        <div class="header-ob" id="header-ob">
+            <div class="header-box photo-box">
+                <img id="stylePhoto" alt="Style Photo">
+                <div class="photo-placeholder" id="photoPlaceholder">Foto Style</div>
+            </div>
+            <div class="header-box"><strong>Style / File No</strong><span id="h-style">-</span></div>
+            <div class="header-box"><strong>Buyer</strong><span id="h-buyer">-</span></div>
+            <div class="header-box"><strong>Tanggal</strong><span id="h-date">-</span></div>
+            <div class="header-box"><strong>Description</strong><span id="h-desc">-</span></div>
+            <div class="header-box"><strong>Workers</strong><span id="h-workers">-</span></div>
+            <div class="header-box"><strong>Takt Time</strong><span id="h-takt">-</span></div>
+            <div class="header-box"><strong>Total SMV</strong><span id="h-smv">-</span></div>
+            <div class="header-box"><strong>Target / Day</strong><span id="h-target-day">-</span></div>
+        </div>
+
+        <div class="process-container" id="process-container"></div>
+
+        <div class="recap-container">
+            <div class="recap-title">Rekapitulasi Total Mesin & Operator</div>
+            <table class="recap-table" id="recap-table">
+                <thead>
+                    <tr>
+                        <th>Jenis Mesin</th>
+                        <th>Jumlah Mesin</th>
+                        <th>Jumlah Operator</th>
+                    </tr>
+                </thead>
+                <tbody id="recap-tbody">
+                    <tr><td colspan="3" style="text-align: center; color: #777;">Belum ada data di-generate</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let processDataArray = [];
+        document.getElementById('h-date').innerText = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        const machineColorThemes = {
+            'CS':  { header: '#0d47a1' },
+            'MAN': { header: '#b71c1c' },
+            'MANUAL': { header: '#b71c1c' },
+            'OL':  { header: '#1b5e20' },
+            'OL1': { header: '#1b5e20' },
+            'OL2': { header: '#e65100' },
+            'SN':  { header: '#4a148c' },
+            'FLAT SEAM': { header: '#00838f' },
+            'BARTACK': { header: '#37474f' },
+            'DEFAULT': { header: '#37474f' }
+        };
+
+        const routeColors = ['#1a237e', '#b71c1c', '#1b5e20', '#e65100', '#4a148c', '#00838f', '#6a1b9a', '#ad1457', '#2e7d32', '#f57f17'];
+
+        function getTheme(mType) {
+            let key = (mType || 'DEFAULT').toUpperCase().trim();
+            return machineColorThemes[key] || machineColorThemes['DEFAULT'];
+        }
+
+        document.getElementById('photoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.getElementById('stylePhoto');
+                    img.src = event.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('photoPlaceholder').style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function processExcel() {
+            const fileInput = document.getElementById('obFile');
+            if (!fileInput.files[0]) {
+                alert("Silakan pilih file Excel OB terlebih dahulu!");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                
+                let sheetName = workbook.SheetNames[0];
+                for (let sName of workbook.SheetNames) {
+                    let upperName = sName.toUpperCase();
+                    if (upperName.includes('OB SEWING') || upperName === 'OB') {
+                        sheetName = sName;
+                        break;
+                    }
+                }
+
+                let foundMatch = workbook.SheetNames.some(sName => {
+                    let s = workbook.Sheets[sName];
+                    let jsonCheck = XLSX.utils.sheet_to_json(s, {header: 1});
+                    return jsonCheck.some(row => row.some(cell => String(cell).toUpperCase().includes('NAME OF OPERATION')));
+                });
+
+                if (!workbook.SheetNames.includes(sheetName) || !foundMatch) {
+                    for (let sName of workbook.SheetNames) {
+                        let s = workbook.Sheets[sName];
+                        let jsonCheck = XLSX.utils.sheet_to_json(s, {header: 1});
+                        if (jsonCheck.some(row => row.some(cell => String(cell).toUpperCase().includes('NAME OF OPERATION')))) {
+                            sheetName = sName;
+                            break;
+                        }
+                    }
+                }
+
+                const sheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(sheet, {header: 1});
+
+                parseHeaderAndTable(json);
+                renderLayout();
+                renderRecap();
+                setTimeout(drawConnections, 150);
+            };
+            reader.readAsArrayBuffer(fileInput.files[0]);
+        }
+
+        function parseHeaderAndTable(data) {
+            let headerInfo = {
+                style: '-', buyer: '-', desc: '-', workers: '-',
+                smv: '-', takt: '-', outDay80: '-'
+            };
+
+            for (let r = 0; r < data.length; r++) {
+                for (let c = 0; c < data[r].length; c++) {
+                    let val = String(data[r][c] || '').trim().toUpperCase();
+                    if (val.includes('STYLE/FILE NO')) headerInfo.style = data[r][c+1] || data[r][c+2] || '-';
+                    if (val === 'BUYER') headerInfo.buyer = data[r][c+1] || data[r][c+2] || '-';
+                    if (val === 'DESCRIPTION') headerInfo.desc = data[r][c+1] || data[r][c+2] || '-';
+                    if (val === 'WORKERS') headerInfo.workers = data[r][c+1] || data[r][c+2] || '-';
+                    if (val.includes('OUTPUT/DAY 80% EFF') || val.includes('OUTPUT/HR 80 %EFF') || val.includes('OUTPUT/HR 80%')) {
+                        headerInfo.outDay80 = data[r][c+1] || data[r][c+2] || '-';
+                    }
+                    if (val === 'SMV') headerInfo.smv = data[r][c+1] || data[r][c+2] || '-';
+                    if (val.includes('TAKT TIME') || val === 'TAKT') {
+                        headerInfo.takt = data[r][c+1] || data[r][c+2] || data[r+1]?.[c] || '-';
+                    }
+                }
+            }
+
+            document.getElementById('h-style').innerText = headerInfo.style;
+            document.getElementById('h-buyer').innerText = headerInfo.buyer;
+            document.getElementById('h-desc').innerText = headerInfo.desc;
+            document.getElementById('h-workers').innerText = headerInfo.workers;
+            document.getElementById('h-smv').innerText = !isNaN(parseFloat(headerInfo.smv)) ? parseFloat(headerInfo.smv).toFixed(2) : headerInfo.smv;
+            document.getElementById('h-takt').innerText = !isNaN(parseFloat(headerInfo.takt)) ? parseFloat(headerInfo.takt).toFixed(2) : headerInfo.takt;
+            
+            let targetDayVal = parseFloat(headerInfo.outDay80);
+            document.getElementById('h-target-day').innerText = !isNaN(targetDayVal) ? Math.round(targetDayVal) : headerInfo.outDay80;
+
+            let tableStart = -1;
+            let colMap = { id: 0, no: 1, name: 2, mchType: 4, smv: 5, mp: 7 };
+
+            for (let r = 0; r < data.length; r++) {
+                let row = data[r];
+                let rowStr = row.map(v => String(v || '').toUpperCase()).join(' ');
+                if (rowStr.includes('NAME OF OPERATION') && (rowStr.includes('MACHINE') || rowStr.includes('AVG CT'))) {
+                    tableStart = r + 1;
+                    row.forEach((cell, idx) => {
+                        let cText = String(cell || '').trim().toUpperCase();
+                        if (cText === 'ID') colMap.id = idx;
+                        if (cText === 'NO' || cText === 'NO.') colMap.no = idx;
+                        if (cText.includes('NAME OF OPERATION')) colMap.name = idx;
+                        if (cText === 'MACHINE') colMap.mchType = idx;
+                        if (cText.includes('AVG CT') || cText.includes('SMV')) colMap.smv = idx;
+                        if (cText.includes('ACTUAL OPRT')) colMap.mp = idx;
+                    });
+                    break;
+                }
+            }
+
+            processDataArray = [];
+            if (tableStart !== -1) {
+                for (let i = tableStart; i < data.length; i++) {
+                    let row = data[i];
+                    if (!row || row.length === 0) continue;
+
+                    let colNoVal = row[colMap.no] !== undefined ? row[colMap.no] : row[1];
+                    let colIdVal = row[colMap.id] !== undefined ? row[colMap.id] : row[0];
+
+                    if (colNoVal === undefined || colNoVal === null || String(colNoVal).trim() === '') continue;
+
+                    let seqNumber = parseInt(colNoVal);
+                    let processId = parseInt(colIdVal);
+                    if (isNaN(seqNumber)) continue;
+
+                    let namaProses = row[colMap.name] || row[2];
+                    if (!namaProses || String(namaProses).toUpperCase().includes('TOTAL')) continue;
+                    
+                    let smvVal = parseFloat(row[colMap.smv]) || parseFloat(row[5]) || 0;
+                    let mpVal = parseFloat(row[colMap.mp]) || parseFloat(row[7]) || 1.0;
+                    let mchType = String(row[colMap.mchType] || row[4] || 'MANUAL').trim();
+
+                    let isManual = mchType.toUpperCase() === 'MAN' || mchType.toUpperCase() === 'MANUAL';
+                    let mchCount = isManual ? 1 : Math.ceil(mpVal);
+
+                    processDataArray.push({
+                        idLayout: seqNumber, // Nomor urut dari kolom NO
+                        idSequence: isNaN(processId) ? seqNumber : processId, // Urutan proses dari kolom ID
+                        namaProses: String(namaProses).trim(),
+                        smv: smvVal,
+                        mp: isNaN(mpVal) ? 1.0 : mpVal,
+                        mchCount: mchCount,
+                        mchType: mchType
+                    });
+                }
+            }
+
+            // Urutkan berdasarkan kolom ID (urutan proses)
+            processDataArray.sort((a, b) => a.idSequence - b.idSequence);
+            processDataArray = sortForUShape(processDataArray);
+        }
+
+        function sortForUShape(arr) {
+            let half = Math.ceil(arr.length / 2);
+            let leftSide = arr.slice(0, half);
+            let rightSide = arr.slice(half);
+
+            let pairedRows = [];
+            let maxLen = Math.max(leftSide.length, rightSide.length);
+            for (let i = 0; i < maxLen; i++) {
+                pairedRows.push({
+                    left: leftSide[i] || null,
+                    right: rightSide[i] || null
+                });
+            }
+            return pairedRows;
+        }
+
+        function renderLayout() {
+            const container = document.getElementById('process-container');
+            container.innerHTML = '';
+
+            processDataArray.forEach((rowObj) => {
+                let rowDiv = document.createElement('div');
+                rowDiv.className = 'process-row';
+
+                let leftCell = document.createElement('div');
+                leftCell.className = 'process-cell';
+                if (rowObj.left) leftCell.appendChild(createCard(rowObj.left));
+                else leftCell.classList.add('empty');
+                rowDiv.appendChild(leftCell);
+
+                let rightCell = document.createElement('div');
+                rightCell.className = 'process-cell';
+                if (rowObj.right) rightCell.appendChild(createCard(rowObj.right));
+                else rightCell.classList.add('empty');
+                rowDiv.appendChild(rightCell);
+
+                container.appendChild(rowDiv);
+            });
+        }
+
+        function createCard(proc) {
+            let theme = getTheme(proc.mchType);
+            let formattedSmv = Math.round(proc.smv) + 's';
+
+            let card = document.createElement('div');
+            card.className = `process-card`;
+            card.id = `card-${proc.idLayout}`; // Tetap merujuk ID card berdasarkan NO untuk routing balancing
+            card.style.setProperty('--card-header', theme.header);
+
+            card.innerHTML = `
+                <div class="process-header">
+                    <span>No. ${proc.idLayout}</span>
+                    <span>Machine: ${proc.mchType}</span>
+                </div>
+                <div class="process-body">
+                    <div class="process-info">
+                        <div class="proc-name">${proc.namaProses}</div>
+                        <div class="proc-smv">SMV: ${formattedSmv}</div>
+                    </div>
+                    <div class="machine-count-box">${proc.mchCount}</div>
+                </div>
+                <div class="process-footer">
+                    <span>Op: ${proc.mp}</span>
+                </div>
+            `;
+            return card;
+        }
+
+        function renderRecap() {
+            let summaryMap = {};
+            let totalMPAll = 0;
+            let totalMchAll = 0;
+
+            processDataArray.forEach(rowObj => {
+                [rowObj.left, rowObj.right].forEach(proc => {
+                    if (proc) {
+                        let mType = proc.mchType.toUpperCase();
+                        if (!summaryMap[mType]) summaryMap[mType] = { countMch: 0, countMp: 0 };
+                        summaryMap[mType].countMch += proc.mchCount;
+                        summaryMap[mType].countMp += proc.mp;
+
+                        totalMPAll += proc.mp;
+                        totalMchAll += proc.mchCount;
+                    }
+                });
+            });
+
+            const tbody = document.getElementById('recap-tbody');
+            tbody.innerHTML = '';
+
+            Object.keys(summaryMap).sort().forEach(key => {
+                let data = summaryMap[key];
+                let theme = getTheme(key);
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="machine-badge" style="background-color: ${theme.header};"></span><strong>${key}</strong></td>
+                    <td>${data.countMch} Unit</td>
+                    <td>${data.countMp.toFixed(1)} Orang</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            let trTotal = document.createElement('tr');
+            trTotal.innerHTML = `
+                <td><strong>TOTAL</strong></td>
+                <td><strong>${totalMchAll} Unit</strong></td>
+                <td><strong>${totalMPAll.toFixed(1)} Orang</strong></td>
+            `;
+            tbody.appendChild(trTotal);
+        }
+
+        function drawConnections() {
+            const svg = document.getElementById('svg-canvas');
+            const layoutContainer = document.getElementById('layout-container');
+
+            svg.setAttribute('height', layoutContainer.scrollHeight);
+            svg.setAttribute('width', layoutContainer.scrollWidth);
+
+            let defsEl = svg.querySelector('defs');
+            svg.innerHTML = '';
+            if (defsEl) svg.appendChild(defsEl);
+
+            const inputVal = document.getElementById('routeInput').value;
+            if (!inputVal) return;
+
+            const containerRect = layoutContainer.getBoundingClientRect();
+            const routes = inputVal.split(',');
+
+            routes.forEach((route, routeIndex) => {
+                let match = route.trim().match(/(\d+)\s*-\s*(\d+)/);
+                if (match) {
+                    let fromId = match[1].trim();
+                    let toId = match[2].trim();
+
+                    let fromCard = document.getElementById(`card-${fromId}`);
+                    let toCard = document.getElementById(`card-${toId}`);
+
+                    if (fromCard && toCard) {
+                        let r1 = fromCard.getBoundingClientRect();
+                        let r2 = toCard.getBoundingClientRect();
+
+                        let x1 = r1.left - containerRect.left;
+                        let y1 = r1.top - containerRect.top;
+                        let w1 = r1.width;
+                        let h1 = r1.height;
+
+                        let x2 = r2.left - containerRect.left;
+                        let y2 = r2.top - containerRect.top;
+                        let w2 = r2.width;
+                        let h2 = r2.height;
+
+                        let c1X = x1 + w1 / 2;
+                        let c2X = x2 + w2 / 2;
+                        let containerCenterX = containerRect.width / 2;
+
+                        let isFromLeft = c1X < containerCenterX;
+                        let isToLeft = c2X < containerCenterX;
+
+                        let startX = isFromLeft ? (x1 + w1) : x1;
+                        let startY = y1 + (h1 / 2);
+
+                        let endX = isToLeft ? (x2 + w2) : x2;
+                        let endY = y2 + (h2 / 2);
+
+                        let midX = containerCenterX + ((routeIndex % 3) * 6 - 9);
+
+                        let pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+                        let lineColor = routeColors[routeIndex % routeColors.length];
+
+                        let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        path.setAttribute('d', pathData);
+                        path.setAttribute('stroke', lineColor);
+                        path.setAttribute('stroke-width', '1.8');
+                        path.setAttribute('fill', 'none');
+                        
+                        let markerId = `arrow-${routeIndex}`;
+                        let marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                        marker.setAttribute('id', markerId);
+                        marker.setAttribute('viewBox', '0 0 10 10');
+                        marker.setAttribute('refX', '6');
+                        marker.setAttribute('refY', '5');
+                        marker.setAttribute('markerWidth', '4');
+                        marker.setAttribute('markerHeight', '4');
+                        marker.setAttribute('orient', 'auto-start-reverse');
+                        marker.innerHTML = `<path d="M 0 0 L 10 5 L 0 10 z" fill="${lineColor}" />`;
+                        svg.appendChild(marker);
+
+                        path.setAttribute('marker-end', `url(#${markerId})`);
+                        svg.appendChild(path);
+                    }
+                }
+            });
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('layout-container');
+            const opt = {
+                margin: 0,
+                filename: 'Garment_Layout_Portrait.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        window.addEventListener('resize', drawConnections);
+    </script>
+</body>
+</html>
